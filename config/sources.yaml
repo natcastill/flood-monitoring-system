@@ -1,0 +1,83 @@
+version: "1.0"
+project: "Flood Monitoring and Risk System"
+region: "Texas, US"
+
+sources:
+  noaa_storm_events:
+    name: "NOAA NCEI Storm Events Database"
+    type: "historical"
+    format: "csv.gz"
+    base_url: "https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/"
+    file_pattern: "StormEvents_details-ftp_v1.0_d{year}_c*.csv.gz"
+    event_types:
+      - "Flood"
+      - "Flash Flood"
+      - "Heavy Rain"
+    spatial_coverage: "United States (Filtered to Texas, STATE='TEXAS')"
+    temporal_coverage: "1950 - present"
+    update_frequency: "Monthly (re-compiled with revisions denoted by _cYYYYMMDD)"
+    rate_limits: "Polite bulk download, cached locally"
+    license: "U.S. Federal Government Public Domain"
+    watermark_field: "BEGIN_DATE_TIME"
+    duplicate_key: "EVENT_ID"
+
+  ghcn_daily:
+    name: "NOAA NCEI Global Historical Climatology Network - Daily"
+    type: "historical"
+    format: "json"
+    base_url: "https://www.ncei.noaa.gov/access/services/data/v1"
+    dataset: "daily-summaries"
+    data_types:
+      - "PRCP" # Precipitation in tenths of mm
+      - "TMAX"
+      - "TMIN"
+    target_stations:
+      - "USW00012918" # Houston Hobby Airport, TX
+      - "USW00013904" # Austin Bergstrom International, TX
+      - "USW00023044" # Dallas/Fort Worth International, TX
+      - "USW00012921" # San Antonio International, TX
+    spatial_coverage: "Texas weather stations"
+    temporal_coverage: "Multi-decadal historical archive"
+    update_frequency: "Daily summaries published with 24-48h latency"
+    rate_limits: "Standard web service limits (no API key required)"
+    license: "U.S. Federal Government Public Domain"
+    watermark_field: "DATE"
+    duplicate_key: ["STATION", "DATE"]
+
+  nws_observations:
+    name: "National Weather Service API - Station Observations"
+    type: "incremental"
+    format: "geojson"
+    base_url: "https://api.weather.gov/stations/{station_id}/observations"
+    target_stations:
+      - "KHOU" # Houston Hobby
+      - "KAUS" # Austin Bergstrom
+      - "KDFW" # Dallas Fort Worth
+      - "KSAT" # San Antonio
+    headers:
+      User-Agent: "FloodMonitoringApp/1.0 (contact: cavirguezs@udistrital.edu.co)"
+      Accept: "application/geo+json"
+    spatial_coverage: "Station point coordinates (WGS84)"
+    update_frequency: "Sub-hourly / Hourly (typically every 20-60 minutes)"
+    rate_limits: "Polite access (no strict hard cap, throttles if flooded)"
+    license: "U.S. Federal Government Public Domain"
+    watermark_field: "properties.timestamp"
+    duplicate_key: "id"
+
+  nws_alerts:
+    name: "National Weather Service API - Active Alerts"
+    type: "incremental"
+    format: "geojson"
+    base_url: "https://api.weather.gov/alerts/active"
+    query_params:
+      area: "TX"
+      event: "Flood Warning,Flash Flood Warning,Flood Watch,Flood Advisory"
+    headers:
+      User-Agent: "FloodMonitoringApp/1.0 (contact: cavirguezs@udistrital.edu.co)"
+      Accept: "application/geo+json"
+    spatial_coverage: "Texas counties / NWS public forecast zones / polygons"
+    update_frequency: "Continuous / Event-driven"
+    rate_limits: "Polite polling (recommended interval: 5 to 15 minutes)"
+    license: "U.S. Federal Government Public Domain"
+    watermark_field: "properties.sent"
+    duplicate_key: "id"
